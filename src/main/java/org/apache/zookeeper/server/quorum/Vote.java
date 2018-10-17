@@ -25,7 +25,20 @@ import org.slf4j.LoggerFactory;
 
 public class Vote {
     private static final Logger LOG = LoggerFactory.getLogger(Vote.class);
-    
+
+
+    final private int version;
+    //推选的服务器的sid
+    final private long id;
+    //推选的服务器的zxid
+    final private long zxid;
+    //投票者的逻辑时钟
+    final private long electionEpoch;
+    //推选的服务器的逻辑时钟
+    final private long peerEpoch;
+    //投票者状态
+    final private ServerState state;
+
     public Vote(long id, 
                     long zxid) {
         this.version = 0x0;
@@ -85,16 +98,7 @@ public class Vote {
         this.peerEpoch = peerEpoch;
         this.version = 0x0;
     }
-    
-    final private int version;
-    
-    final private long id;
-    
-    final private long zxid;
-    
-    final private long electionEpoch;
-    
-    final private long peerEpoch;
+
     
     public int getVersion() {
         return version;
@@ -120,8 +124,6 @@ public class Vote {
         return state;
     }
 
-    final private ServerState state;
-    
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof Vote)) {

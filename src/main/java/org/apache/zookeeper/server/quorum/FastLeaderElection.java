@@ -75,7 +75,17 @@ public class FastLeaderElection implements Election {
 
     QuorumCnxManager manager;
 
+    LinkedBlockingQueue<ToSend> sendqueue;
+    LinkedBlockingQueue<Notification> recvqueue;
 
+    QuorumPeer self;
+    Messenger messenger;
+    volatile long logicalclock; /* Election instance */
+    long proposedLeader;
+    long proposedZxid;
+    long proposedEpoch;
+
+    volatile boolean stop;
     /**
      * Notifications are messages that let other peers know that
      * a given peer has changed its vote, either because it has
@@ -131,29 +141,7 @@ public class FastLeaderElection implements Election {
                     + Long.toHexString(peerEpoch) + " (n.peerEpoch) ");
         }
     }
-    
-    static ByteBuffer buildMsg(int state,
-            long leader,
-            long zxid,
-            long electionEpoch,
-            long epoch) {
-        byte requestBytes[] = new byte[40];
-        ByteBuffer requestBuffer = ByteBuffer.wrap(requestBytes);
 
-        /*
-         * Building notification packet to send 
-         */
-
-        requestBuffer.clear();
-        requestBuffer.putInt(state);
-        requestBuffer.putLong(leader);
-        requestBuffer.putLong(zxid);
-        requestBuffer.putLong(electionEpoch);
-        requestBuffer.putLong(epoch);
-        requestBuffer.putInt(Notification.CURRENTVERSION);
-        
-        return requestBuffer;
-    }
 
     /**
      * Messages that a peer wants to send to other peers.
@@ -162,22 +150,6 @@ public class FastLeaderElection implements Election {
      */
     static public class ToSend {
         static enum mType {crequest, challenge, notification, ack}
-
-        ToSend(mType type,
-                long leader,
-                long zxid,
-                long electionEpoch,
-                ServerState state,
-                long sid,
-                long peerEpoch) {
-
-            this.leader = leader;
-            this.zxid = zxid;
-            this.electionEpoch = electionEpoch;
-            this.state = state;
-            this.sid = sid;
-            this.peerEpoch = peerEpoch;
-        }
 
         /*
          * Proposed leader in the case of notification
@@ -203,15 +175,52 @@ public class FastLeaderElection implements Election {
          * Address of recipient
          */
         long sid;
-        
+
         /*
          * Leader epoch
          */
         long peerEpoch;
-    }
 
-    LinkedBlockingQueue<ToSend> sendqueue;
-    LinkedBlockingQueue<Notification> recvqueue;
+        ToSend(mType type,
+            long leader,
+            long zxid,
+            long electionEpoch,
+            ServerState state,
+            long sid,
+            long peerEpoch) {
+
+            this.leader = leader;
+            this.zxid = zxid;
+            this.electionEpoch = electionEpoch;
+            this.state = state;
+            this.sid = sid;
+            this.peerEpoch = peerEpoch;
+        }
+
+    }
+    
+    static ByteBuffer buildMsg(int state,
+            long leader,
+            long zxid,
+            long electionEpoch,
+            long epoch) {
+        byte requestBytes[] = new byte[40];
+        ByteBuffer requestBuffer = ByteBuffer.wrap(requestBytes);
+
+        /*
+         * Building notification packet to send 
+         */
+
+        requestBuffer.clear();
+        requestBuffer.putInt(state);
+        requestBuffer.putLong(leader);
+        requestBuffer.putLong(zxid);
+        requestBuffer.putLong(electionEpoch);
+        requestBuffer.putLong(epoch);
+        requestBuffer.putInt(Notification.CURRENTVERSION);
+        
+        return requestBuffer;
+    }
 
     /**
      * Multi-threaded implementation of message handler. Messenger
@@ -493,12 +502,7 @@ public class FastLeaderElection implements Election {
 
     }
 
-    QuorumPeer self;
-    Messenger messenger;
-    volatile long logicalclock; /* Election instance */
-    long proposedLeader;
-    long proposedZxid;
-    long proposedEpoch;
+
 
 
     /**
@@ -557,7 +561,7 @@ public class FastLeaderElection implements Election {
         return manager;
     }
 
-    volatile boolean stop;
+
     public void shutdown(){
         stop = true;
         LOG.debug("Shutting down connection manager");
